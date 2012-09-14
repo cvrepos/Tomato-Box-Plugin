@@ -1,0 +1,21 @@
+{
+        "name": "Tomato Box (Beta)",
+        "description": "Picks fresh tomatoes for you",
+        "version": "0.5",
+        "manifest_version": 2,
+        "permissions": ["http://rbxrank.aws.af.cm/"],
+        "content_security_policy": "default-src 'self'",
+        "content_scripts": [
+            {
+                "matches": ["*://*.redbox.com/*"],
+                "css" : ["rank.css"],
+                "js": ["jquery.min.js","parser.js"]
+            }
+        ],
+        "icons": { "16": "icon16.png",
+                   "48": "icon48.png",
+                   "128": "icon128.png"
+                }
+
+
+}
