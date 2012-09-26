@@ -61,7 +61,8 @@ function updateMovie(c, a, url, obj){
     }
     if(obj.getOrder() % 20 == 0){
         var pc = parseInt(((totalMovies - obj.getOrder())/totalMovies) * 100);
-        $("#rbxrank_progress").text(pc + "%");
+        //$("#rbxrank_progress").text(pc + "%");
+        $("#rbxrank_progress").css('width',pc+'%');
         
     }
     if(obj.getOrder() == 0){
@@ -152,8 +153,8 @@ function sortMovies(){
 
             });
             displayRanking(p, obj, "#rbxrank_"+ i, true, false,
-                "<span class='icon tiny rotten'>&nbsp;</span>{SCORE}%", 
-                "<span class='icon tiny fresh'>&nbsp;</span>{SCORE}%");
+                "<span class='icon tiny rotten'>&nbsp;</span><span class='rbxrank_small_text'>{SCORE}</span><span class='rbxrank_small_pc'>%</span>", 
+                "<span class='icon tiny fresh'>&nbsp;</span><span class='rbxrank_small_text'>{SCORE}</span><span class='rbxrank_small_pc'>%</span>");
     });
     //console.log("Done sorting.");
 }
@@ -235,8 +236,12 @@ if(elems.length == 3){
     });
 
     //console.log("scheduling timer 1 sec");
-    $(".filter-container").append("<div class='rbxrank_busy'><span class='rbxrank_text'>Picking fresh tomatoes for you....</span>" +
-                                  "<span id='rbxrank_progress' class='rbxrank_text'>0%</span>" +
+    $(".filter-container").append("<div class='rbxrank_busy redbg stripes'> " + 
+   "<div class='rbxrank_text_abs'>Picking fresh tomatoes for you....</div>" + 
+   "<span id='rbxrank_progress' class='rbxrank_bar'></span>" + 
+
+//<span class='rbxrank_text'>Picking fresh tomatoes for you....</span>" +
+ //                                 "<span id='rbxrank_progress' class='rbxrank_text'>0%</span>" +
                                   "</div>");
 
     totalMovies = movieHandlers.length;
