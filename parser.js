@@ -1,3 +1,10 @@
+// Global Constants
+var SCHEDULE_INTERVAL = 1000; // milliseconds
+var BATCH_SIZE = 20; // BATCH_SIZE
+var DVD = 1;
+var BLURAY = 2;
+var IP = "http://rbxrank.aws.af.cm/"; // for local testing change it to http://127.0.0.1:8989/
+
 function normalize(name)
 {
     var decoded  = decodeURIComponent(name);
@@ -6,39 +13,60 @@ function normalize(name)
     return trimmed;
 }
 
-function MovieHandler(target, name){
-    this.target = target;
-    this.name   = name;
+function Range(start, end)
+{
+    this.start = start;
+    this.end = end;
+}
+
+function Range()
+{
+    this.start = -1;
+    this.end = -1;
+}
+
+function Movie(name, context)
+{
+    this.name = name;
+    this.context = context;
 }
 
 
-function MovieHandler(target, name, callback){
+function MovieHandler(target, movie)
+{
     this.target = target;
-    this.name   = name;
+    this.movie  = movie;
+}
+
+function MovieHandler(target, movie, callback)
+{
+    this.target = target;
+    this.movie   = movie;
     this.callback = callback;
 }
 
-MovieHandler.prototype.getTarget = function(){
-    return this.target;
+MovieHandler.prototype.setOrder = function(order)
+{
+    this.movie.context = order;
 }
 
-MovieHandler.prototype.setOrder = function(order){
-    this.order = order;
+MovieHandler.prototype.getOrder = function()
+{
+    return this.movie.context;
 }
 
-MovieHandler.prototype.getUrl = function(){
+MovieHandler.prototype.getUrl = function()
+{
     return this.url;
 }
 
-MovieHandler.prototype.setUrl = function(url){
+MovieHandler.prototype.setUrl = function(url)
+{
     this.url = url;
 }
 
-MovieHandler.prototype.getOrder = function(){
-    return this.order;
-}
-
-function updateMovie(c, a, url, obj){
+function updateMovie(c, a, url, obj)
+{
     //console.log("critics_score is :" + c + " order:" + obj.getOrder() );
     if(c >0){
         $(obj.target).attr("cscore", c);
@@ -52,43 +80,126 @@ function updateMovie(c, a, url, obj){
     }else{
         $(obj.target).attr("ascore", 0);
     }
+
     obj.setUrl(url);
+
     if(url){
         $(obj.target).attr("rlink", url);
     }
     if(obj.callback){
         obj.callback();
     }
-    if(obj.getOrder() % 20 == 0){
-        var pc = parseInt(((totalMovies - obj.getOrder())/totalMovies) * 100);
-        $("#rbxrank_progress").text(pc + "%");
-        
-    }
-    if(obj.getOrder() == 0){
-        $(".rbxrank_busy").remove();
-        sortMovies();
-    }
-        
 }
 
+
 function getRankings(movieHandler, onSuccess) {
-    var movie = movieHandler.name;
-    //console.log("movie is :" + movie);
+    var name = movieHandler.movie.name;
+    console.log("movie is :" + name);
     $.ajax({
         type: "GET",
-        url: "http://rbxrank.aws.af.cm/add",
-        data: "id=" + movie + "&access_token=B8CF722F917D" ,
+        url: IP + "get",
+        data: "id=" + name + "&access_token=B8CF722F917D" ,
         context: movieHandler,
         dataType: 'json', 
+        success: onSuccess,
+        error: function(jqXHR, textStatus, errorThrown){
+                  console.log("textStatus:" + textStatus + " error:" + errorThrown);
+        },
+    });
+}
+
+
+function getRankings_n(movieHandlers, start, length, onSuccess) 
+{
+    var movies = new Array();
+    var i = start; // to offset the boundary condition
+    var lastIndex = start + length;
+    while(i < movieHandlers.length && i < lastIndex ){
+        var movie =  movieHandlers[i].movie;
+        //console.log("Adding ["+ movie.name +"] in batch.");
+        movies.push(movie);
+        i++;
+    }
+    if(movies.length == 0){
+        //console.log("No movies to get ranking.");
+        return;
+    }
+
+    var cx = new Range();
+    cx.start = start;
+    cx.end   = start + movies.length;
+    // create the http payload
+    var payload = new Object();
+    payload.ids = movies;
+    var dPayload = JSON.stringify(payload);
+    //console.log("Payload is :" + dPayload);
+
+    // make an ajax call
+    $.ajax({
+        type: "POST",
+        url: IP + "get?access_token=B8CF722F917D",
+        data: dPayload,
+        context: cx,
+        dataType: 'json', 
+        contentType: "application/json",
         success: onSuccess,
         error: function(jqXHR, textStatus, errorThrown){
                   //console.log("textStatus:" + textStatus + " error:" + errorThrown);
         },
     });
 }
+
 function responseHandler(ratings)
 {
     updateMovie(ratings.critics_score, ratings.audience_score, ratings.rlink, this);
+}
+
+// Ajax success callback. Each of the element in the ratingsArray is 
+// ratings{_id, critics_ratings, audience_ratings, rlink, context}
+// *this* is Range added as the context params  to Ajax call
+function responseHandler_n(ratingsArray)
+{
+    //console.log("Response:" + JSON.stringify(ratingsArray));
+    // update the progress bar
+    var pc = parseInt((this.end/totalMovies) * 100);
+    console.log("end:" + this.end + " pc:" + pc);
+    $("#rbxrank_progress").css('width',pc+'%');
+    if(pc >=100){
+        setTimeout(function() {
+            var obj = $(".rbxrank_busy");
+            var p   = $(obj).parent();
+            $(obj).remove();
+            var obj = $(p).append("<div class='options_bar rbxrank_busy'><div class='containerwrapper'>" + 
+                "<div id='sort_button' class='action_button'>Click to Sort Movies by Tomatoes</div>" +
+                "<div id='reset_button' class='action_button'>Click to Refresh Ratings</div>" +
+                "</div></div>");
+            $('#sort_button', obj).click( function(){
+                console.log("Sorting movies");
+                sortMoviesByRanking();
+            });
+            $('#reset_button', obj).click( function(){
+                console.log("Reloading");
+                sortMoviesByOrder();
+                //window.location.reload(false); 
+            });
+
+        }, 2000);
+    }
+
+    if(ratingsArray != null){
+        for(var i=0; i<ratingsArray.length; i++){
+            var ratings = ratingsArray[i];
+            //console.log("Looking up movie :" + ratings._id 
+                    //+ " in start:" + this.start 
+                    //+ " end  :" + this.end)
+            var index = ratings.context;
+            if(index < this.start || index > this.end){
+                //console.log("Invalid index: " + index);
+            }
+            updateMovie(ratings.critics_score, ratings.audience_score, ratings.rlink, movieHandlers[index]);
+            displayRanking_1(index);
+        }
+    }
 }
 
 function findRanking(movieHandler)
@@ -100,12 +211,23 @@ function findRanking(movieHandler)
     }
 }
 
-function displayRanking(p, obj, selector, cscoreOnly, displayNonRated,  rottenC, freshC, rottenA, freshA){
-    //console.log("displayranking :", cscoreOnly);
+function findRanking_n(movieHandlers, start, length)
+{
+    try{
+        getRankings_n(movieHandlers, start, length,  responseHandler_n);
+    }catch(err){
+        console.log("Exception:" + err);
+    }
+}
+
+function displayRanking(p, obj, selector, cscoreOnly, displayNonRated,  rottenC, freshC, rottenA, freshA)
+{
     if(obj != p){
-        p.prepend(obj); 
+        //p.prepend(obj); 
     }
     var c = $(obj).attr("cscore");
+    var a = $(obj).attr("ascore");
+    //console.log("cscore [%d] and ascore[%d] for movie[%s]", c, a, $(obj).attr('name'));
     if(c >= 1 && c <=60){
         $(selector, p).append(rottenC.replace("{SCORE}", c)); 
     }else if( c > 60 ){
@@ -117,7 +239,6 @@ function displayRanking(p, obj, selector, cscoreOnly, displayNonRated,  rottenC,
 
     }
     if(cscoreOnly == false){
-        var a = $(obj).attr("ascore");
         if(a >= 1 && a <=60){
             $(selector, p).append(rottenA.replace("{SCORE}", a)); 
         }else if( a > 60 ){
@@ -131,7 +252,47 @@ function displayRanking(p, obj, selector, cscoreOnly, displayNonRated,  rottenC,
 }
 
 
-function sortMovies(){
+function displayRanking_1(i)
+{
+        //console.log("displaying ranking for index:" + i);
+        var obj = movieHandlers[i].target;
+        var p = $(obj).parent();
+        $(obj).append("<div class='rbxrank_elem' id='rbxrank_"+ i+ "'/>");
+        $("#rbxrank_" + i).click(function(){
+                var url = $(obj).attr("rlink");
+                if(url){
+                window.open(url, null, "width=500, height=500, top=0");
+                }
+
+        });
+
+        displayRanking(p, obj, "#rbxrank_"+ i, true, false,
+                "<span class='icon tiny rotten'>&nbsp;</span><span class='rbxrank_small_text'>{SCORE}</span><span class='rbxrank_small_pc'>%</span>", 
+                "<span class='icon tiny fresh'>&nbsp;</span><span class='rbxrank_small_text'>{SCORE}</span><span class='rbxrank_small_pc'>%</span>");
+}
+
+
+function sortMoviesByOrder()
+{
+    if(movieHandlers.length < 1){
+        //console.log("unable to find movies");
+        return;
+    }
+    //console.log("Sorting " + listitems.length + " movies");
+    var listitems = $(movieHandlers);
+    var p = $(movieHandlers[0].target).parent();
+    listitems.sort(function(a, b) {
+               return b.getOrder() - a.getOrder();
+    });
+    $.each(listitems, function(i, obj) { 
+            if(p != obj.target){
+                p.prepend(obj.target);
+            }
+    });
+    console.log("Done sorting by order.");
+}
+function sortMoviesByRanking()
+{
     var listitems = $('div[cscore]');
     if(listitems.length < 1){
         //console.log("unable to find movies");
@@ -143,43 +304,26 @@ function sortMovies(){
                return $(a).attr("cscore") - $(b).attr("cscore");
                });
     $.each(listitems, function(i, obj) { 
-            $(obj).append("<div class='rbxrank_elem' id='rbxrank_"+ i+ "'/>");
-            $("#rbxrank_" + i).click(function(){
-                var url = $(obj).attr("rlink");
-                if(url){
-                    window.open(url, null, "width=500, height=500, top=0");
-                }
-
-            });
-            displayRanking(p, obj, "#rbxrank_"+ i, true, false,
-                "<span class='icon tiny rotten'>&nbsp;</span>{SCORE}%", 
-                "<span class='icon tiny fresh'>&nbsp;</span>{SCORE}%");
+            if(p != obj){
+                p.prepend(obj);
+            }
     });
-    //console.log("Done sorting.");
+    console.log("Done sorting by ranking");
 }
 
-function schedule(){
-    //console.log("schedule invoked. queue size=" + movieHandlers.length);
-    var i =0;
-    var movieHandler;
-    while((i < 20) && (movieHandlers.length > 0)){
-        movieHandler = movieHandlers.shift();
-        movieHandler.setOrder(movieHandlers.length);
-        var name = $(movieHandler.getTarget()).attr('name');
-        if(name != null){
-            //console.log("Querying movie:" + name);
-            findRanking(movieHandler);
-            i++;
-        }
-    }
-    if(i == 20){
-        setTimeout(schedule, 1000);
+function schedule()
+{
+    //console.log("Querying start index[" + movieHandlers.queryCounter + "]");
+    findRanking_n(movieHandlers, movieHandlers.queryCounter, BATCH_SIZE);
+    movieHandlers.queryCounter += BATCH_SIZE;
+    if(movieHandlers.queryCounter < movieHandlers.length){
+        setTimeout(schedule, SCHEDULE_INTERVAL);
     }
 }
 
 function displayRankingCallback()
 {
-    var obj = this.getTarget();
+    var obj = this.target;
     var url = this.getUrl();
     var p = $(obj).parent();
     $(".rbxrank_group").click(function(){
@@ -197,48 +341,84 @@ function normalize_urlmovie(name){
     return name2;
 }
 var movieHandlers = new Array();
+movieHandlers.queryCounter = 0;
 var totalMovies = 0;
-var path = window.location.pathname;
-var elems = path.split("/");
-//console.log("path: " + path + " split:" + elems.length);
-if(elems.length == 3){
-    //on a movie page 
-    var heading  = $("h1[itemprop=name]");
-    if(heading){
-        var movie = normalize($(heading).text());
-        //console.log("name of the movie:"+ movie);
-        if(movie){
-            var obj  = $("h1[itemprop=name]");
-            if(obj == null){
-                //console.log("null item");
-                return;
-            }
-            var target = $(obj).parent();
-            $("<div class='rbxrank_group'/>").insertAfter(target);
-            var movieHandler = new MovieHandler(target, movie, displayRankingCallback);
-            findRanking(movieHandler);
-        }
-    }
-}else{
-    $.each( $(".box-wrapper"), function(index, obj){
+
+function buildMovieHandlers(matchClass, context)
+{
+    movieHandlers.queryCounter = 0;
+    movieHandlers.splice(0);
+    console.log("buildMovieHandlers");
+    $("." + matchClass, context).each( function(index, obj){
             var name = $(obj).attr('name');
             //check if the movie is out-of-box 
-            $.each( $(obj).children('img'), function(i, img){
-                if( $(obj).attr("src").contains("label_out")){
-                    //console.log("Encountered movie with label_out");
-                    return;
+            var skip = false;
+            $.each( $(obj).find('img'), function(i, img){
+                //console.log($(img).attr("src"));
+                if( $(img).attr("src").indexOf("label_out") != -1){
+                    //console.log("Encountered movie [%s] with label_out", name);
+                    skip = true;
                 }
             });
-            var nname = normalize(name);
-            var movieHandler = new MovieHandler(obj, nname);
-            movieHandlers.push(movieHandler);
+            if( skip == false){
+                var nname = normalize(name);
+                var movieObj = new Movie(nname, movieHandlers.length);
+                var movieHandler = new MovieHandler(obj, movieObj);
+                movieHandlers.push(movieHandler);
+                console.log("Found movie:" + nname);
+            }
     });
-
-    //console.log("scheduling timer 1 sec");
-    $(".filter-container").append("<div class='rbxrank_busy'><span class='rbxrank_text'>Picking fresh tomatoes for you....</span>" +
-                                  "<span id='rbxrank_progress' class='rbxrank_text'>0%</span>" +
-                                  "</div>");
-
-    totalMovies = movieHandlers.length;
-    setTimeout(schedule, 1000);
+    console.log("buildMovieHandlers found movie:"+ movieHandlers.length);
 }
+
+// XXX - main execution starts here 
+function main()
+{
+    var path = window.location.pathname;
+    var elems = path.split("/");
+    console.log("path: " + path + " split:" + elems.length);
+    if(elems.length == 3){
+        //on a movie page 
+        var heading  = $("h1[itemprop=name]");
+        if(heading){
+            var name = $(heading).text();
+            var nname = normalize(name);
+            //console.log("name of the movie:"+ nname);
+            if(nname){
+                var obj  = heading;
+                if(obj == null){
+                    //console.log("null item");
+                    return;
+                }
+                var target = $(obj).parent();
+                $("<div class='rbxrank_group'/>").insertAfter(target);
+                var movie = new Movie(nname, 0);
+                var movieHandler = new MovieHandler(target, movie, displayRankingCallback);
+                findRanking(movieHandler);
+            }
+        }
+    }
+    else{
+        buildMovieHandlers("box-wrapper", document);
+        $.each($("div[class=sp-inline-header]"), function(i, obj){
+                $(obj).on("mouseup", function() {
+                    // requery in background
+                    setTimeout( function(){
+                        buildMovieHandlers("box-wrapper", document);
+                        totalMovies = movieHandlers.length;
+                        setTimeout(schedule, SCHEDULE_INTERVAL);
+                    }, 3000);
+                    });
+                 return;
+        });
+        //console.log("scheduling timer 1 sec movies found:" + movieHandlers.queryCounter);
+
+        $(".filter-container").append("<div class='rbxrank_busy redbg stripes'> " + 
+           "<div class='rbxrank_text_abs'>Picking fresh tomatoes for you....</div>" + 
+           "<span id='rbxrank_progress' class='rbxrank_bar'></span>" + 
+          "</div>");
+
+        totalMovies = movieHandlers.length;
+        setTimeout(schedule, SCHEDULE_INTERVAL);
+    }
+}main();
