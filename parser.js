@@ -4,6 +4,9 @@ var BATCH_SIZE = 20; // BATCH_SIZE
 var DVD = 1;
 var BLURAY = 2;
 var IP = "http://rbxrank.aws.af.cm/"; // for local testing change it to http://127.0.0.1:8989/
+var movie_cache = {};
+var click_pending = false;
+var tries = 3;
 
 function normalize(name)
 {
@@ -36,12 +39,14 @@ function MovieHandler(target, movie)
 {
     this.target = target;
     this.movie  = movie;
+		this.key = $(target).attr('key');
 }
 
 function MovieHandler(target, movie, callback)
 {
     this.target = target;
     this.movie   = movie;
+		this.key = $(target).attr('key');
     this.callback = callback;
 }
 
@@ -65,8 +70,20 @@ MovieHandler.prototype.setUrl = function(url)
     this.url = url;
 }
 
+MovieHandler.prototype.getKey = function()
+{
+    return this.key;
+}
+
+MovieHandler.prototype.setKey = function(key)
+{
+    this.key = key;
+}
+
 function updateMovie(c, a, url, obj)
 {
+
+    movie_cache[obj.getKey()] = {name: obj.movie.name ,cscore:c,asocre: a, rlink: url};
     //console.log("critics_score is :" + c + " order:" + obj.getOrder() );
     if(c >0){
         $(obj.target).attr("cscore", c);
@@ -94,7 +111,7 @@ function updateMovie(c, a, url, obj)
 
 function getRankings(movieHandler, onSuccess) {
     var name = movieHandler.movie.name;
-    console.log("movie is :" + name);
+    //console.log("movie is :" + name);
     $.ajax({
         type: "GET",
         url: IP + "get",
@@ -103,7 +120,7 @@ function getRankings(movieHandler, onSuccess) {
         dataType: 'json', 
         success: onSuccess,
         error: function(jqXHR, textStatus, errorThrown){
-                  console.log("textStatus:" + textStatus + " error:" + errorThrown);
+                  console.log("ERROR: movie %s textStatus:%s, error:%s", name, textStatus, errorThrown);
         },
     });
 }
@@ -162,7 +179,7 @@ function responseHandler_n(ratingsArray)
     //console.log("Response:" + JSON.stringify(ratingsArray));
     // update the progress bar
     var pc = parseInt((this.end/totalMovies) * 100);
-    console.log("end:" + this.end + " pc:" + pc);
+    //console.log("end:" + this.end + " pc:" + pc);
     $("#rbxrank_progress").css('width',pc+'%');
     if(pc >=100){
         setTimeout(function() {
@@ -171,17 +188,27 @@ function responseHandler_n(ratingsArray)
             $(obj).remove();
             var obj = $(p).append("<div class='options_bar rbxrank_busy'><div class='containerwrapper'>" + 
                 "<div id='sort_button' class='action_button'>Click to Sort Movies by Tomatoes</div>" +
-                "<div id='reset_button' class='action_button'>Click to Refresh Ratings</div>" +
-                "</div></div>");
+                "<!--div id='reset_button' class='action_button'>Click to Refresh Ratings</div-->" +
+                "</div></div>").hide();
             $('#sort_button', obj).click( function(){
-                console.log("Sorting movies");
-                sortMoviesByRanking();
+                //console.log("Sorting movies");
+                //sortMoviesByRanking();
+								//if ($('#productfilter34874_Sort').val() != 'sortRank')
+								if ($('select[id$="_Sort"]').val() != 'sortRank')
+								{
+									$('select[id$="_Sort"]').val('sortRank');
+									sortMoviesByTomatoes();	
+								}
+								
             });
             $('#reset_button', obj).click( function(){
-                console.log("Reloading");
+                //console.log("Reloading");
                 sortMoviesByOrder();
                 //window.location.reload(false); 
             });
+						//If user has already chosen to sort
+						
+			  $('select[id$="_Sort"]').append('<option value="sortRank">Tomatoes Rank</option>');
 
         }, 2000);
     }
@@ -197,7 +224,8 @@ function responseHandler_n(ratingsArray)
                 //console.log("Invalid index: " + index);
             }
             updateMovie(ratings.critics_score, ratings.audience_score, ratings.rlink, movieHandlers[index]);
-            displayRanking_1(index);
+						initRankElement(index,$(movieHandlers[index].target).children('.rbxrank_elem')[0]);
+            //displayRanking_1(index);
         }
     }
 }
@@ -257,7 +285,7 @@ function displayRanking_1(i)
         //console.log("displaying ranking for index:" + i);
         var obj = movieHandlers[i].target;
         var p = $(obj).parent();
-        $(obj).append("<div class='rbxrank_elem' id='rbxrank_"+ i+ "'/>");
+        $(obj).append('<div class="rbxrank_elem" id="rbxrank_'+ i+ '" rbxname="' + $(obj).attr('name')+'"/>');
         $("#rbxrank_" + i).click(function(){
                 var url = $(obj).attr("rlink");
                 if(url){
@@ -289,7 +317,7 @@ function sortMoviesByOrder()
                 p.prepend(obj.target);
             }
     });
-    console.log("Done sorting by order.");
+    //console.log("Done sorting by order.");
 }
 function sortMoviesByRanking()
 {
@@ -308,7 +336,34 @@ function sortMoviesByRanking()
                 p.prepend(obj);
             }
     });
-    console.log("Done sorting by ranking");
+    //console.log("Done sorting by ranking");
+}
+
+function getScoreByKey(key)
+{
+	if(movie_cache[key])
+		return movie_cache[key].cscore;
+	return -1;
+}
+
+function sortMoviesByTomatoes()
+{
+    var listitems = $('.box-wrapper');
+    if(listitems.length < 1){
+        //console.log("unable to find movies");
+        return;
+    }
+    //console.log("Sorting " + listitems.length + " movies");
+    var p = $(listitems[0]).parent();
+    listitems.sort(function(a, b) {
+               return getScoreByKey($(a).attr("key")) - getScoreByKey($(b).attr("key"));
+               });
+    $.each(listitems, function(i, obj) { 
+            if(p != obj){
+                p.prepend(obj);
+            }
+    });
+    //console.log("Done sorting by Tomato ranking");
 }
 
 function schedule()
@@ -344,18 +399,27 @@ var movieHandlers = new Array();
 movieHandlers.queryCounter = 0;
 var totalMovies = 0;
 
+// Construct Movie Handler objects 
+// Insert place holders 
 function buildMovieHandlers(matchClass, context)
 {
     movieHandlers.queryCounter = 0;
     movieHandlers.splice(0);
-    console.log("buildMovieHandlers");
+    //console.log("buildMovieHandlers");
     $("." + matchClass, context).each( function(index, obj){
             var name = $(obj).attr('name');
+						var key = $(obj).attr('key');
+						//Add place holder for rating display
+						$(obj).append('<div class="rbxrank_elem" state="uninit" key="' 
+													+ key + '" id="rbxrank_' + key 
+													+ '" rbxname="' + name + '"></div>');
+
             //check if the movie is out-of-box 
             var skip = false;
             $.each( $(obj).find('img'), function(i, img){
                 //console.log($(img).attr("src"));
-                if( $(img).attr("src").indexOf("label_out") != -1){
+                if( $(img).attr("src").indexOf("label_out") != -1 
+								     && img.getAttribute('style')?img.getAttribute('style').indexOf('display: none') != -1:false){
                     //console.log("Encountered movie [%s] with label_out", name);
                     skip = true;
                 }
@@ -365,10 +429,106 @@ function buildMovieHandlers(matchClass, context)
                 var movieObj = new Movie(nname, movieHandlers.length);
                 var movieHandler = new MovieHandler(obj, movieObj);
                 movieHandlers.push(movieHandler);
-                console.log("Found movie:" + nname);
+                //console.log("Found movie:" + nname);
             }
     });
-    console.log("buildMovieHandlers found movie:"+ movieHandlers.length);
+    //console.log("buildMovieHandlers found movie:"+ movieHandlers.length);
+}
+
+function getRankingByKeys(keys, cb)
+{
+	//keys are local key (corresponds to redbox key) and name
+	var data = movie_cache[keys.key];		
+  if (data)
+	{
+		cb(data);
+	}
+	else //not found in local cache - check server
+	{
+	    getRankings({movie: new Movie(keys.name,0)}, function (rating){
+					if (!(rating.critics_score > 0)) 
+					{
+						console.log('Rating unavailable for movie: ' + keys.name);
+					}
+					movie_cache[keys.key] = {name:keys.name, cscore: rating.critics_score, 
+					                         ascore: rating.audience_score,
+																	 rlink: rating.rlink};
+					cb(movie_cache[keys.key]);
+				}
+			);
+	}
+}
+
+function initRankElement(i, obj)
+{
+	var key = $(obj).attr('key');
+	var name = normalize($(obj).attr('rbxname'));
+	$(obj).attr('state','na');
+
+	getRankingByKeys({key:key, name: name}, function(data) {
+		var cscore = data.cscore;
+		var url = data.rlink;
+		if (cscore > 0)
+		{
+		  $(obj).html('<span class="' +
+								  ((cscore > 60)?'icon tiny fresh':'icon tiny rotten') + '"> </span> ' +
+									'<span class="rbxrank_small_text">' + cscore + '</span>' +
+									'<span class="rbxrank_small_pc">%</span>'
+								);
+		}
+		if (url)
+			$(obj).on('click',function() {
+                window.open(url, null, "width=500, height=500, top=0");
+			});
+		$(obj).attr('state','init');
+	});
+}
+
+function _validateDisplay()
+{
+  var uninitElements = $('.rbxrank_elem[state="uninit"]');
+	if (uninitElements.length > 0)
+	{
+	  do
+		{
+			$.each(uninitElements, initRankElement);
+		} while((uninitElements = $('.rbxrank_elem[state="unint"]')).length > 0);
+		click_pending = false;
+		tries = 3;
+		if ($("#productfilter34874_Sort").val() == "sortRank" && $('#sort_button').length > 0)
+		{
+			sortMoviesByTomatoes();	
+			click_pending = false;
+			return;
+		}
+		
+	}
+	else
+	{
+	   //console.log('no element to be initialized'); 	
+		 if (--tries > 0)
+		 {
+		 		setTimeout(_validateDisplay,1000);
+		 }
+		 else
+		 {
+		   //Stop checking
+		 	 click_pending = false;
+			 tries = 3;
+		 }
+	}
+
+}
+
+function validateDisplay()
+{
+	if (click_pending){
+		tries = 3
+  }else
+	{
+		click_pending = true;
+		setTimeout(_validateDisplay,1000);
+	}
 }
 
 // XXX - main execution starts here 
@@ -376,7 +536,7 @@ function main()
 {
     var path = window.location.pathname;
     var elems = path.split("/");
-    console.log("path: " + path + " split:" + elems.length);
+    //console.log("path: " + path + " split:" + elems.length);
     if(elems.length == 3){
         //on a movie page 
         var heading  = $("h1[itemprop=name]");
@@ -400,23 +560,27 @@ function main()
     }
     else{
         buildMovieHandlers("box-wrapper", document);
-        $.each($("div[class=sp-inline-header]"), function(i, obj){
-                $(obj).on("mouseup", function() {
-                    // requery in background
-                    setTimeout( function(){
-                        buildMovieHandlers("box-wrapper", document);
-                        totalMovies = movieHandlers.length;
-                        setTimeout(schedule, SCHEDULE_INTERVAL);
-                    }, 3000);
-                    });
-                 return;
-        });
         //console.log("scheduling timer 1 sec movies found:" + movieHandlers.queryCounter);
 
         $(".filter-container").append("<div class='rbxrank_busy redbg stripes'> " + 
            "<div class='rbxrank_text_abs'>Picking fresh tomatoes for you....</div>" + 
            "<span id='rbxrank_progress' class='rbxrank_bar'></span>" + 
           "</div>");
+
+				//Add our ranking element's holder to product view template of Redbox
+				//var prod_tmpl = $('#productlist34877_ProductView_Template').html();
+				var prod_tmpl = $('script[id$="ProductView_Template"]').html();
+				//$('#productlist34877_ProductView_Template').html(prod_tmpl.replace('fmt#>"></div>','fmt#>"></div>\n<div class="rbxrank_elem" state="uninit" key="<#=ID#>" rbxname="<#=name#>" id="rbxrank_<#=ID#>"></div>'));
+				$('script[id$="ProductView_Template"]').html(prod_tmpl.replace('fmt#>"></div>','fmt#>"></div>\n<div class="rbxrank_elem" state="uninit" key="<#=ID#>" rbxname="<#=name#>" id="rbxrank_<#=ID#>"></div>'));
+
+				//Register events to reconsider validating ranking display
+				$.each($('.ui-button,.rb-clear-filter'), function(i, obj) {
+						$(obj).on('click', validateDisplay);
+				});
+				$.each($('.filter-dropdown'), function(i, obj) {
+						$(obj).on('change', validateDisplay);
+				});
+
 
         totalMovies = movieHandlers.length;
         setTimeout(schedule, SCHEDULE_INTERVAL);
