@@ -1,0 +1,166 @@
+/** - reused from rottentomatoes.com css - **/
+.icon {
+	display: inline-block;
+	vertical-align: text-bottom;
+background: transparent url('http://amardeka.files.wordpress.com/2012/04/icons.png') no-repeat 
+}
+
+.icon.tiny {
+	width: 16px;
+	height: 16px;
+}
+.tiny.rotten {
+	background-position: -272px -144px;
+}
+
+.tiny.fresh {
+	background-position: -256px -144px;
+}
+
+.icon.rotten_bucket{
+    width: 44px;
+    height: 36px;
+    background-position: -196px -8px;
+    float:left;
+    margin-top:3px;
+    margin-left:3px;
+}
+
+.icon.fresh_tomato{
+    width: 48px;
+    height: 48px;
+    background-position: -192px -48px;
+    float:left;
+    margin-top:3px;
+    margin-left:3px;
+}
+
+.icon.fresh_bucket{
+    width: 40px;
+    height: 48px;
+    background-position: -244px -48px;
+    float:left;
+    margin-left:3px;
+}
+
+.icon.rotten_tomato{
+    width: 48px;
+    height: 48px;
+    background-position: -240px -97px;
+    float:left;
+    margin-top:3px;
+    margin-left:3px;
+}
+.ratings{
+    width: 120px;
+    height: 50px;
+    float:left;
+    border-radius:5px;
+    border-style:solid;
+    border-width:1px;
+    border-color:white;
+    margin: 3px;
+          background-image: linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -o-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -moz-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -webkit-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -ms-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+
+          background-image: -webkit-gradient(
+                    linear,
+                    left bottom,
+                    left top,
+                    color-stop(0.29, rgb(192,154,169)),
+                    color-stop(0.65, rgb(231,185,203)),
+                   color-stop(0.3, rgb(248,255,224))
+          );
+
+}
+.ratings:hover{
+  border-color:black;  
+}
+
+
+
+.rbxrank_group {
+    display:inline-block;
+    float:left;
+    margin:10px;
+}
+.rbxrank_elem {
+    display:inline-block;
+    padding-left:30px;
+    padding-right:30px;
+    border-radius:5px;
+    border-style:solid;
+    border-width:1px;
+    border-color:white;
+    margin: 3px;
+    width:50px;
+          background-image: linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -o-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -moz-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -webkit-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -ms-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+
+          background-image: -webkit-gradient(
+                    linear,
+                    left bottom,
+                    left top,
+                    color-stop(0.29, rgb(192,154,169)),
+                    color-stop(0.65, rgb(231,185,203)),
+                   color-stop(0.3, rgb(248,255,224))
+                  );
+}
+
+.rbxrank_elem:hover{
+  border-color:black;  
+}
+
+.rbxrank_text {
+    float:left;
+    position:relative;
+    top: 10px;
+    font-size:30px;
+    padding-left:8px;
+}      
+
+.rbxrank_pc {
+    position:relative;
+    top:10px;
+    font-size:20px;
+}
+
+.rbxrank_busy 
+{
+    display:block;
+    padding-left:30px;
+    padding-right:30px;
+    border-radius:5px;
+    border-style:solid;
+    border-width:1px;
+    border-color:white;
+    margin: 3px;
+    height: 50px;
+          background-image: linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -o-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -moz-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -webkit-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+          background-image: -ms-linear-gradient(bottom, rgb(192,154,169) 29%, rgb(231,185,203) 65%, rgb(248,255,224) 30%);
+
+          background-image: -webkit-gradient(
+                    linear,
+                    left bottom,
+                    left top,
+                    color-stop(0.29, rgb(192,154,169)),
+                    color-stop(0.65, rgb(231,185,203)),
+                   color-stop(0.3, rgb(248,255,224))
+                  );
+}
+#tomatoranking{
+position: fixed;
+top: 1em;
+right: 1em;
+border:solid 2px;
+background-color:red;
+}
